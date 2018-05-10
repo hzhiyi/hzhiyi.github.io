@@ -1,0 +1,230 @@
+
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>匿名信</title>
+		<link rel="stylesheet" type="text/css" href="css/style.css" />
+		<link rel="stylesheet" href="css/mdui.min.css">
+        <script src="js/mdui.min.js"></script>
+	</head>
+    
+	<body background="image/bk.jpg">
+		<body class="mdui-theme-primary-blue">
+			<div class="mdui-toolbar mdui-color-theme mdui-appbar-fixed">
+				<span class="mdui-typo-title">匿名信</span>
+				<div class="mdui-toolbar-spacer"></div>
+			</div>
+			<div class="mdui-container" style="margin-left:180px; margin-top:250px">
+				<div class="secret-wrap" id="app" v-clock>
+					<div class="inp-wrap" >
+                        <div class="noExtension" id="noExtension">
+                            提示: 请安装
+                            <a target="_blank" href="https://github.com/ChengOrangeJu/WebExtensionWallet">WebExtensionWallet</a> 再使用匿名信
+                        </div>
+                        <hr style="width:50%">
+                        <br />
+                        <a>有没有写给你的匿名信呢？快来查一查吧！</a>
+                        <br />
+                        <div>
+                            <textarea id="myname" rows="1"  cols="1" placeholder="你的名字" style="float:left;"></textarea>
+                            <div >
+                                <br />
+                                <button style="margin-left:10px; margin-top:2px"  id="mypush" onclick="mypush()" class="mdui-btn mdui-btn-raised mdui-ripple">查一查</button>
+                            </div>
+                        </div>
+                        <br />
+                        <br />
+                        <div class="item" v-for="(s,index) in list">
+                            <div class="img">
+                                <img src="image/photo.jpg" alt="" />
+                            </div>
+                            <div class="user">
+                                <div class="info">
+                                    <div>
+                                        <span class="time" v-html="formatDateTime(s.time)"></span>
+                                    </div>
+                                </div>
+                                <div class="content" v-html="s.value">
+                                </div>
+                            </div>
+                        </div>
+                        <br />
+						<button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-dense" disabled="disabled" id="prePage">上一页</button>
+						<button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-dense" disabled="disabled" id="nextPage">下一页</button>
+     
+                        <br />
+                        <br />
+                        <hr style="width:50%">
+                        <br />
+                        <a>快来给心爱的他/她写一封匿名信吧？</a>
+                        <br />
+                        <textarea id="name" rows="1" cols="20" placeholder="写下他/她的名字"></textarea>
+                        <br />
+						<textarea id="word" rows="5" cols="20" placeholder="写下你想对他/她说的话吧"></textarea>
+						<br />
+						<button id="push" onclick="push()" class="mdui-btn mdui-btn-raised mdui-ripple">提交</button>
+					</div>
+				</div>
+			</div>
+			<script src="js/jquery-3.3.1.min.js" type="text/javascript" charset="utf-8"></script>
+			<script src="js/nebPay.js" type="text/javascript" charset="utf-8"></script>
+			<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+			<script src="js/layer/layer.js" type="text/javascript" charset="utf-8"></script>
+			<script>
+				var NebPay = require("nebpay"); //https://github.com/nebulasio/nebPay
+				var nebPay = new NebPay();
+
+				//检查扩展是否已安装
+				//如果安装了扩展，var“webExtensionWallet”将被注入到web页面中1
+				if(typeof(webExtensionWallet) === "undefined") {
+					//alert ("扩展钱包未安装，请先安装.")
+                    //$("#noExtension").atrr("display", "block");
+                    document.getElementById("noExtension").style.display="block";
+				}
+
+				var dappAddress = "n1vxxL3mLXDEJPx3JuKVh5mfY4hQ3BCkFYG";
+				var totalSize = 0;
+                var page = 0;
+                var myname = "";
+                function getLetter(page) {
+
+                    if(page == 0){
+                        document.getElementById("prePage").disabled=true;
+                    }
+
+                    if(totalSize/2 > page + 1){
+                        document.getElementById("nextPage").disabled=false;
+                    }
+                    else{
+                        document.getElementById("nextPage").disabled=true;
+                    }
+
+					var to = dappAddress;
+					var value = "0";
+					var callFunction = "get";
+					var callArgs = "[\"" + myname + "\",2," +  page * 2 + "]"; //in the form of ["args"]
+					nebPay.simulateCall(to, value, callFunction, callArgs, { //使用nebpay的simulateCall接口去执行get查询, 模拟执行.不发送交易,不上链
+						listener: cbSearch //指定回调函数
+					});
+                }
+                
+				//return of search,
+				function cbSearch(resp) {
+					if(!resp.result) return;
+					var result = eval(JSON.parse(resp.result));
+					if(result !== 'null') {
+                        Vue.set(app, 'list', result)
+                        if(page > 0){
+                            document.getElementById("prePage").disabled=false;
+                        }
+					}
+				}
+
+                // 查询
+				function mypush() {
+                    if($("#myname").val() == '') {
+						layer.alert('我的名字不能为空哟！');
+						return;
+                    } 
+                    
+                    Vue.set(app, 'list', null)
+                    document.getElementById("prePage").disabled=true;
+                    document.getElementById("nextPage").disabled=true;
+
+                    myname = $("#myname").val();
+                    page = 0;
+                    totalSize = 0;
+
+                    getsize(myname);
+
+                    getLetter(page);
+                }
+
+                function getsize(name){
+                    var to = dappAddress;
+					var value = "0";
+					var callFunction = "size";
+					var callArgs = "[\"" + name + "\"]"; //in the form of ["args"]
+					nebPay.simulateCall(to, value, callFunction, callArgs, { //使用nebpay的simulateCall接口去执行get查询, 模拟执行.不发送交易,不上链
+						listener: cbSize //指定回调函数
+					});
+                }
+
+                function cbSize(resp) {
+                    if(!resp.result) 
+                        return;
+
+					var result = JSON.parse(resp.result);
+					if(result !== 'null') {
+                        totalSize = parseInt(result);
+
+                        if(totalSize/2 > page){
+                            document.getElementById("nextPage").disabled=false;
+                        }
+					}
+                }
+                
+				// 提交
+				function push() {
+					if($("#name").val() == '' || $("#word").val() == '') {
+						layer.alert('名字和信息不能为空哟！');
+						return;
+					} 
+					var to = dappAddress;
+					var value = "0";
+					var callFunction = "save"
+                    var callArgs = [];
+                    callArgs.push($("#name").val());
+					callArgs.push($("#word").val());
+					nebPay.call(to, value, callFunction, JSON.stringify(callArgs), { //使用nebpay的call接口去调用合约,
+						listener: cbPush
+					});
+				}
+
+				function cbPush(resp) {
+					console.log("response of push: " + resp);
+					$("#word").val('')
+				}
+
+				var app = new Vue({
+					el: '#app',
+					data: {
+						list: []
+					},
+					methods: {
+						formatDateTime: function(theDate) {
+							var date = new Date();
+							date.setTime(theDate);
+							var y = date.getFullYear();
+							var m = date.getMonth() + 1;
+							m = m < 10 ? ('0' + m) : m;
+							var d = date.getDate();
+							d = d < 10 ? ('0' + d) : d;
+							var h = date.getHours();
+							h = h < 10 ? ('0' + h) : h;
+							var minute = date.getMinutes();
+							var second = date.getSeconds();
+							minute = minute < 10 ? ('0' + minute) : minute;
+							second = second < 10 ? ('0' + second) : second;
+							return y + '-' + m + '-' + d + ' ' + h + ':' + minute + ':' + second;
+						},
+					}
+				})
+
+				$('#prePage').on('click', function() {
+                    page -= 1;
+                   
+					getLetter(page);
+				});
+
+				$('#nextPage').on('click', function() {
+                    page += 1;
+                    
+					getLetter(page);
+				});
+			</script>
+		</body>
+
+</html>
