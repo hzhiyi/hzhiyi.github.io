@@ -108,7 +108,7 @@
 					var to = dappAddress;
 					var value = "0";
 					var callFunction = "get";
-					var callArgs = "[\"" + myname + "\",2," +  page * 2 + "]"; //in the form of ["args"]
+					var callArgs = "[\"" + myname + "\",10," +  page * 10 + "]"; //in the form of ["args"]
 					nebPay.simulateCall(to, value, callFunction, callArgs, { //使用nebpay的simulateCall接口去执行get查询, 模拟执行.不发送交易,不上链
 						listener: cbSearch //指定回调函数
 					});
@@ -168,7 +168,7 @@
 						if(totalSize == 0){
 							document.getElementById("noone").style.display="block";
 						}
-                        if(totalSize/2 > page){
+                        if(totalSize/10 > page){
                             document.getElementById("nextPage").disabled=false;
                         }
 					}
