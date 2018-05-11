@@ -36,6 +36,10 @@
                         </div>
                         <br />
                         <br />
+						<div id="noone" style="display: none">
+							<a >还没有人给你写匿名信哦!试试给别人写一封吧</a>
+							<br />
+						</div>
                         <div class="item" v-for="(s,index) in list">
                             <div class="img">
                                 <img src="image/photo.jpg" alt="" />
@@ -50,7 +54,7 @@
                                 </div>
                             </div>
                         </div>
-                        <br />
+						<br/>
 						<button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-dense" disabled="disabled" id="prePage">上一页</button>
 						<button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-dense" disabled="disabled" id="nextPage">下一页</button>
      
@@ -132,7 +136,8 @@
                     Vue.set(app, 'list', null)
                     document.getElementById("prePage").disabled=true;
                     document.getElementById("nextPage").disabled=true;
-
+					document.getElementById("noone").style.display="none";
+					
                     myname = $("#myname").val();
                     page = 0;
                     totalSize = 0;
@@ -160,6 +165,9 @@
 					if(result !== 'null') {
                         totalSize = parseInt(result);
 
+						if(totalSize == 0){
+							document.getElementById("noone").style.display="block";
+						}
                         if(totalSize/2 > page){
                             document.getElementById("nextPage").disabled=false;
                         }
