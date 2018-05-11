@@ -91,6 +91,7 @@
 				var dappAddress = "n222Je7me5V1jpqpFPNVhAhQc4rexLQHmcN";
 				var totalSize = 0;
                 var page = 0;
+				var perpage = 8;
                 var myname = "";
                 function getLetter(page) {
 
@@ -98,7 +99,7 @@
                         document.getElementById("prePage").disabled=true;
                     }
 
-                    if(totalSize/2 > page + 1){
+                    if(Math.ceil(totalSize/perpage) > page + 1){
                         document.getElementById("nextPage").disabled=false;
                     }
                     else{
@@ -108,7 +109,7 @@
 					var to = dappAddress;
 					var value = "0";
 					var callFunction = "get";
-					var callArgs = "[\"" + myname + "\",10," +  page * 10 + "]"; //in the form of ["args"]
+					var callArgs = "[\"" + myname + "\"," + perpage + "," +  page * perpage + "]"; //in the form of ["args"]
 					nebPay.simulateCall(to, value, callFunction, callArgs, { //使用nebpay的simulateCall接口去执行get查询, 模拟执行.不发送交易,不上链
 						listener: cbSearch //指定回调函数
 					});
@@ -168,7 +169,7 @@
 						if(totalSize == 0){
 							document.getElementById("noone").style.display="block";
 						}
-                        if(totalSize/10 > page){
+                        if(Math.ceil(totalSize/perpage) > page+1){
                             document.getElementById("nextPage").disabled=false;
                         }
 					}
