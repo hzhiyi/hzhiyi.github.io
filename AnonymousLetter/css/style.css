@@ -89,3 +89,6 @@
 .hide{
 	display: none;
 }
+
+.public-copyright{padding:20px 0; text-align:center; color:#999; font-size:0.7rem; width:50%}
+.public-copyright img{margin-top:5px; height:1.5rem;}
