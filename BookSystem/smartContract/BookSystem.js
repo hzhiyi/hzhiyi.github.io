@@ -36,7 +36,7 @@ var Book = function(text){
         this.name = "";
         this.desc = "";
         this.author = "";
-        this.author_addr = obj.author_addr;
+        this.author_addr = "";
         this.state = "";
         this.chapter_num = 0;
     }
@@ -53,11 +53,11 @@ var BookChapter = function(text){
         var obj = JSON.parse(text);
         this.index = obj.index;
         this.name = obj.name;
-        this.price = obj.price;
+        this.price = new BigNumber(obj.price);
     } else {
         this.index = 0;
         this.name = "";
-        this.price = 0;
+        this.price = new BigNumber(0);
     }
 };
 
@@ -73,7 +73,7 @@ var SubscribeInfo = function(text){
         this.indexes = obj.indexes;
 
     } else {
-        this.indexes = "[]";
+        this.indexes = [];
     }
 };
 
@@ -96,7 +96,14 @@ var BookSystem = function() {
     });
 
     LocalContractStorage.defineMapProperty(this, "bookIdMap");
-    LocalContractStorage.defineMapProperty(this, "bookChapter");
+    LocalContractStorage.defineMapProperty(this, "bookChapter", {
+        parse: function(text) {
+            return new BookChapter(text);
+        },
+        stringify: function(o) {
+            return o.toString();
+        }
+    });
     LocalContractStorage.defineMapProperty(this, "chapterContent");
     LocalContractStorage.defineMapProperty(this, "bookMap", {
         parse: function(text) {
@@ -120,6 +127,14 @@ BookSystem.prototype = {
         return this.size;
     },
 
+	is_author: function(){
+		 var from = Blockchain.transaction.from;
+        if(this.authorMap.get(from) != null){
+            return 1;
+        }
+		return 0;
+	},
+	
     register_author:function(info) {//注册作者
         var from = Blockchain.transaction.from;
         if(this.authorMap.get(from) != null){
@@ -220,8 +235,8 @@ BookSystem.prototype = {
   
         var result = {
             have_more:true,
-            data: new Array(),
-        }
+            data: [],
+        };
         var count = 0;
         var i = offset+1;
         for(; i <= this.size && count < limit; i++){
@@ -231,7 +246,7 @@ BookSystem.prototype = {
             count++;
         }
 
-        if(i == this.size){
+        if(i > this.size){
             result.have_more = false;
         }
 
@@ -248,11 +263,11 @@ BookSystem.prototype = {
 
         var book = this.bookMap.get(book_name);
 
-        var result = new Array();
+        var result = [];
         for(var i = 1; i <= book.chapter_num;  i++){
             var key = id + "_" + i;
             var object = this.bookChapter.get(key);
-            result.data.push(object);
+            result.push(object);
         }
         return result;
     },
@@ -273,8 +288,23 @@ BookSystem.prototype = {
         if(book.author_addr == from){
             return this.chapterContent.get(key);
         }else{
-
+			var object = this.bookChapter.get(key);
+			//免费章节
+			if(object.price.eq(new BigNumber(0))){
+				return this.chapterContent.get(key);
+			}
+			else{
+				var key = from + "_" + id;
+				var subscribeInfo = this.subscribeMap.get(key);
+				if(subscribeInfo != null){
+					if(subscribeInfo.indexes.indexOf(index) != -1){
+						return this.chapterContent.get(key);
+					}
+				}
+			}
         }
+		
+		throw new Error("请先订阅该章节！");
     },
 
     subscribe_chapter: function(id, index){
@@ -290,19 +320,49 @@ BookSystem.prototype = {
         var key = from + "_" + id;
         var subscribeInfo = this.subscribeMap.get(key);
         if(subscribeInfo == null){
-            throw new Error("作品不存在！");
+            subscribeInfo = new SubscribeInfo();
         }
 
-        if(subscribeInfo.indexes._has(index)){
+        if(subscribeInfo.indexes.indexOf(index) != -1){
             throw new Error("你已经订阅过该章节！");
         }
 
-        key = id + "_" + index;
+        var key2 = id + "_" + index;
         var value = Blockchain.transaction.value;
-        var object = this.bookChapter.get(key);
-        if(object.price){
-            
+        var object = this.bookChapter.get(key2);
+        if(value.lt(object.price)){
+			Blockchain.transfer(from, value);
+            throw new Error("支付费用不足！");
         }
+		
+		var to_author = value.times(new BigNumber(0.9));
+		var to_me = value.plus(to_author.negated());
+		var book = this.bookMap.get(book_name);
+		Blockchain.transfer(book.author_addr, to_author);
+		Blockchain.transfer("n1YMSC3rLBYTQ2QTNB2bZwzzwy5BNKSNgCm", to_me);
+		subscribeInfo.indexes.push(index);
+		this.subscribeMap.set(key, subscribeInfo);
+		return this.chapterContent.get(key2);
     },
+	
+	is_subscribed: function(id, index){
+		var book_name = this.bookIdMap.get(id);
+        if(book_name == null){
+            throw new Error("作品不存在！");
+        }
+		
+		var from = Blockchain.transaction.from;
+		var key = from + "_" + id;
+        var subscribeInfo = this.subscribeMap.get(key);
+        if(subscribeInfo == null){
+            subscribeInfo = new SubscribeInfo();
+        }
+
+        if(subscribeInfo.indexes.indexOf(index) != -1){
+            return 1;
+        }
+		return 0;
+	},
+
 };
 module.exports = BookSystem;
