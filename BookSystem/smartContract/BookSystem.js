@@ -5,13 +5,13 @@ var Author = function(text) {
         var obj = JSON.parse(text);
         this.name = obj.name;
         this.desc = obj.desc;
-        this.photos = obj.photos;
         this.from = obj.from;
+        this.works = obj.works;
     } else {
         this.name = "";
         this.desc = "";
-        this.photos = "";
         this.from = "";
+        this.works = [];
     }
 };
 
@@ -83,6 +83,22 @@ SubscribeInfo.prototype = {
     }
 };
 
+var CollectionInfo = function(text){
+    if (text) {
+        var obj = JSON.parse(text);
+        this.books = obj.books;
+
+    } else {
+        this.books = [];
+    }
+};
+
+CollectionInfo.prototype = {
+    toString: function() {
+        return JSON.stringify(this);
+    }
+};
+
 var BookSystem = function() {
     LocalContractStorage.defineProperty(this, "size");
     LocalContractStorage.defineMapProperty(this, "authorNameMap");
@@ -115,6 +131,7 @@ var BookSystem = function() {
     });
 
     LocalContractStorage.defineMapProperty(this, "subscribeMap"); 
+    LocalContractStorage.defineMapProperty(this, "collectionMap"); 
 };
 
 BookSystem.prototype = {
@@ -128,11 +145,12 @@ BookSystem.prototype = {
     },
 
 	is_author: function(){
-		 var from = Blockchain.transaction.from;
-        if(this.authorMap.get(from) != null){
-            return 1;
+         var from = Blockchain.transaction.from;
+         var author = this.authorMap.get(from);
+        if(author != null){
+            return author.name;
         }
-		return 0;
+		return "";
 	},
 	
     register_author:function(info) {//注册作者
@@ -155,6 +173,27 @@ BookSystem.prototype = {
         author.from = from;
         this.authorNameMap.put(author.name, from);
         this.authorMap.put(from, author);
+        return 1;
+    },
+
+    author_works:function(name){
+        name = name.trim();
+        if(name == ""){
+            throw new Error("作者名称不能为空");
+        }
+        var author_addr = this.authorNameMap.get(name);
+        if(author_addr == null){
+            throw new Error("未找到该作者");
+        }
+
+        var result = [];
+        var author = this.authorMap.get(author_addr);
+        for(var id in author.works) {
+            var book_name = this.bookIdMap.get(id);
+            var book = this.bookMap.get(book_name);
+            result.push(book);
+        }
+        return result;
     },
 
     new_book:function(info){//新建书箱
@@ -178,10 +217,14 @@ BookSystem.prototype = {
         book.id = this.size;
         book.chapter_num = 0;
         book.author = author.name;
-        book.state = "新上传";
+        book.state = "新书上传";
         book.author_addr = from;
         this.bookMap.put(book.name, book);
         this.bookIdMap.put(book.id, book.name);
+
+        author.works.push(book.id);
+        this.authorMap.put(from, author);
+        return 1;
     },
 
     release_chapter: function(id, name, content, price) {//发布章节
@@ -214,6 +257,7 @@ BookSystem.prototype = {
         }
 
         book.chapter_num += 1;
+        book.state = "连载中";
         this.bookMap.set(book_name, book);
 
         
@@ -224,6 +268,7 @@ BookSystem.prototype = {
         var key = id + "_" + chapter.index;
         this.bookChapter.put(key, chapter);
         this.chapterContent.put(key, content);
+        return 1;
     },
 
     get_books: function(limit, offset){
@@ -364,5 +409,47 @@ BookSystem.prototype = {
 		return 0;
 	},
 
+    set_finished: function(id){
+
+        var book_name = this.bookIdMap.get(id);
+        if(book_name == null){
+            throw new Error("作品不存在！");
+        }
+        var from = Blockchain.transaction.from;
+        var book = this.bookMap.get(book_name);
+        if(book.author_addr == from){
+            book.state = "已完结";
+            this.bookMap.set(book_name, book);
+            return 1;
+        } else{
+            throw new Error("你不是该作品作者！");
+        }
+    },
+
+    search_author: function(name){
+        name = name.trim();
+        if(name == ""){
+            throw new Error("作者名称不能为空");
+        }
+        var author_addr = this.authorNameMap.get(name);
+        if(author_addr == null){
+            throw new Error("未找到该作者");
+        }
+
+        var author = this.authorMap.get(author_addr);
+        return author;
+    },
+
+    search_book: function(name){
+        name = name.trim();
+        if(name == ""){
+            throw new Error("作品名称不能为空");
+        }
+        var book = this.bookMap.get(name);
+        if(book == null){
+            throw new Error("作品不存在！");
+        }
+        return book;
+    },
 };
 module.exports = BookSystem;
